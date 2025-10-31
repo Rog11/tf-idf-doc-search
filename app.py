@@ -5,6 +5,7 @@ import string
 import math
 from typing import List, Dict, Tuple
 from collections import defaultdict
+import os
 
 import re
 import math
@@ -384,4 +385,5 @@ def rank_frequency():
     return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))  # Render will provide PORT; defaults to 5000 locally
+    app.run(host='0.0.0.0', port=port, debug=True)
