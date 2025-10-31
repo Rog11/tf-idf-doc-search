@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TF-IDF Search Engine Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      :root {
+        --primary: #1a73e8;
+        --primary-dark: #0d47a1;
+        --accent: #e15759;
+        --bg: #f5f7fa;
+        --text: #202124;
+        --border: #dadce0;
+        --success: #34a853;
+        --card-bg: #ffffff;
+        --shadow: 0 2px 8px rgba(32, 33, 36, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", "Google Sans", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto 1fr;
+        gap: 20px;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      .header {
+        grid-column: 1 / -1;
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--primary-dark) 100%
+        );
+        color: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 2.2em;
+        font-weight: 600;
+      }
+
+      .header p {
+        margin: 8px 0 0 0;
+        opacity: 0.9;
+        font-size: 1.1em;
+      }
+
+      .left-panel {
+        grid-column: 1;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .right-panel {
+        grid-column: 2;
+        grid-row: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      .card-title {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin: 0;
+      }
+
+      .badge {
+        background: var(--primary);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: 600;
+      }
+
+      .upload-area {
+        border: 2px dashed var(--border);
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      .upload-area:hover {
+        border-color: var(--primary);
+        background: #e8f0fe;
+      }
+
+      .upload-area.dragover {
+        border-color: var(--success);
+        background: #e6f4ea;
+      }
+
+      .upload-icon {
+        font-size: 3em;
+        color: var(--primary);
+        margin-bottom: 10px;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      button {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 0.95em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+      }
+
+      button.success {
+        background: var(--success);
+      }
+
+      button.success:hover {
+        background: #1e7e34;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #3c4043;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: 1em;
+        transition: border 0.2s;
+      }
+
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+      }
+
+      .radio-group {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        margin: 12px 0;
+      }
+
+      .radio-group label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: normal;
+        cursor: pointer;
+      }
+
+      .radio-group input[type="radio"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      .results-container {
+        flex: 1;
+        overflow-y: auto;
+        max-height: 600px;
+      }
+
+      .result {
+        background: #f8f9fa;
+        padding: 18px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        border-left: 4px solid var(--primary);
+        transition: transform 0.2s;
+      }
+
+      .result:hover {
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .result h3 {
+        margin: 0;
+        font-size: 1.05em;
+        color: var(--primary-dark);
+      }
+
+      .language-badge {
+        background: var(--accent);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .language-badge.en {
+        background: #1e88e5;
+      }
+
+      .language-badge.fr {
+        background: #e15759;
+      }
+
+      .snippet {
+        font-size: 1em;
+        line-height: 1.6;
+        color: #3c4043;
+      }
+
+      .snippet b {
+        background: #fff3cd;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-weight: 600;
+        color: #856404;
+      }
+
+      .meta {
+        font-size: 0.85em;
+        color: #70757a;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #e0e0e0;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #9aa0a6;
+      }
+
+      .empty-state-icon {
+        font-size: 4em;
+        margin-bottom: 16px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85em;
+      }
+
+      th {
+        background: #f1f3f5;
+        padding: 10px 8px;
+        text-align: left;
+        font-weight: 600;
+        color: #3c4043;
+        border-bottom: 2px solid var(--border);
+        position: sticky;
+        top: 0;
+      }
+
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      tr:hover {
+        background-color: #f8f9fa;
+      }
+
+      .table-container {
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .graphs-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      .graph-box {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+      }
+
+      .graph-title {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--primary-dark);
+        margin: 0 0 20px 0;
+        text-align: center;
+      }
+
+      .graph-container {
+        width: 100%;
+        overflow: visible;
+      }
+
+      .axis-label {
+        fill: #3c4043;
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .axis text {
+        fill: #5f6368;
+        font-size: 10px;
+      }
+
+      .axis line,
+      .axis path {
+        stroke: #dadce0;
+      }
+
+      @media (max-width: 1200px) {
+        .dashboard {
+          grid-template-columns: 1fr;
+        }
+
+        .left-panel,
+        .right-panel {
+          grid-column: 1;
+        }
+
+        .graphs-container {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="dashboard">
+      <!-- Header -->
+      <!-- <div class="header">
+        <h1>🔍 TF-IDF Search Engine Dashboard</h1>
+        <p>
+          Advanced text analysis with language detection and statistical
+          visualization
+        </p>
+      </div> -->
+
+      <!-- Left Panel: Search & Results -->
+      <div class="left-panel">
+        <!-- Search Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Search</h2>
+          </div>
+          <form id="search-form">
+            <div class="form-group">
+              <label for="query">Search Query</label>
+              <input
+                type="text"
+                id="query"
+                placeholder="Enter search terms..."
+                required
+              />
+            </div>
+            <div class="radio-group">
+              <label>
+                <input type="radio" name="mode" value="sentence" checked />
+                Sentence (Cosine)
+              </label>
+              <label>
+                <input type="radio" name="mode" value="word" />
+                Word (TF-IDF)
+              </label>
+            </div>
+            <button type="submit" style="width: 100%">Search</button>
+          </form>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card" style="flex: 1">
+          <div class="card-header">
+            <h2 class="card-title">Search Results</h2>
+            <span class="badge" id="results-count">0</span>
+          </div>
+          <div class="results-container" id="results">
+            <div class="empty-state">
+              <div class="empty-state-icon">🔎</div>
+              <p>Enter a search query to find documents</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload Card -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Upload Document</h2>
+          </div>
+          <div class="upload-area" id="upload-area">
+            <div class="upload-icon">📄</div>
+            <p><strong>Click to upload</strong> or drag and drop</p>
+            <p style="font-size: 0.9em; color: #70757a">TXT files only</p>
+            <input type="file" id="file-input" accept=".txt" />
+          </div>
+          <button
+            id="upload-btn"
+            class="success"
+            style="margin-top: 15px; width: 100%; display: none"
+          >
+            Upload File
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Panel: Analytics -->
+      <div class="right-panel">
+        <!-- Top Terms Table -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Top 50 Terms by IDF</h2>
+          </div>
+          <div class="table-container" id="overall-table"></div>
+        </div>
+
+        <!-- Graphs -->
+        <div class="graphs-container">
+          <!-- Term Frequency Distribution -->
+          <div class="graph-box">
+            <h3 class="graph-title">Term Frequency Distribution</h3>
+            <div id="tf-histogram-container" class="graph-container"></div>
+          </div>
+
+          <!-- Rank-Frequency (Zipf) Plot -->
+          <div class="graph-box">
+            <h3 class="graph-title">Rank-Frequency (Zipf's Law)</h3>
+            <div id="zipf-plot-container" class="graph-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // -----------------------------------------------------------------
+      // File Upload Handling
+      // -----------------------------------------------------------------
+      const uploadArea = document.getElementById("upload-area");
+      const fileInput = document.getElementById("file-input");
+      const uploadBtn = document.getElementById("upload-btn");
+      let selectedFile = null;
+
+      uploadArea.addEventListener("click", () => fileInput.click());
+
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      });
+
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("dragover");
+      });
+
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].name.endsWith(".txt")) {
+          fileInput.files = files;
+          handleFileSelect(files[0]);
+        } else {
+          alert("Please upload a .txt file");
+        }
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          handleFileSelect(e.target.files[0]);
+        }
+      });
+
+      function handleFileSelect(file) {
+        selectedFile = file;
+        uploadArea.innerHTML = `
+          <div class="upload-icon">✅</div>
+          <p><strong>${file.name}</strong></p>
+          <p style="font-size: 0.9em; color: #70757a;">${(
+            file.size / 1024
+          ).toFixed(2)} KB</p>
+        `;
+        uploadBtn.style.display = "block";
+      }
+
+      uploadBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const text = e.target.result;
+          const resp = await fetch("/add_document", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text }),
+          });
+
+          if (resp.ok) {
+            const { doc_id } = await resp.json();
+            alert(`Document uploaded successfully!\nID: ${doc_id}`);
+
+            // Reset upload area
+            uploadArea.innerHTML = `
+              <div class="upload-icon">📄</div>
+              <p><strong>Click to upload</strong> or drag and drop</p>
+              <p style="font-size: 0.9em; color: #70757a;">TXT files only</p>
+            `;
+            uploadBtn.style.display = "none";
+            selectedFile = null;
+
+            // Reload data
+            loadOverallTable();
+            loadTFHistogram();
+            loadZipfPlot();
+          } else {
+            alert("Upload failed");
+          }
+        };
+        reader.readAsText(selectedFile);
+      });
+
+      // -----------------------------------------------------------------
+      // Load all data on page load
+      // -----------------------------------------------------------------
+      window.addEventListener("load", async () => {
+        await loadOverallTable();
+        await loadTFHistogram();
+        await loadZipfPlot();
+      });
+
+      // -----------------------------------------------------------------
+      // 1. Overall TF-IDF Table
+      // -----------------------------------------------------------------
+      async function loadOverallTable() {
+        const resp = await fetch("/overall");
+        if (resp.ok) drawTable(await resp.json());
+      }
+
+      function drawTable(raw) {
+        const container = document.getElementById("overall-table");
+        const docIds = ["alice", "candideEn", "candideFr"];
+        let html = `<table>
+            <tr>
+              <th>Rank</th>
+              <th>Term</th>
+              <th>DF</th>
+              <th>IDF</th>
+              ${docIds.map((d) => `<th>TF-IDF ${d}</th>`).join("")}
+            </tr>`;
+        raw.forEach((r, i) => {
+          html += `<tr>
+              <td><strong>${i + 1}</strong></td>
+              <td><code>${r.term}</code></td>
+              <td>${r.df}</td>
+              <td>${r.idf.toFixed(4)}</td>
+              ${docIds
+                .map((d) => `<td>${(r.tf_idf[d] || 0).toFixed(4)}</td>`)
+                .join("")}
+            </tr>`;
+        });
+        html += `</table>`;
+        container.innerHTML = html;
+      }
+
+      // -----------------------------------------------------------------
+      // 2. TF Distribution (per document)
+      // -----------------------------------------------------------------
+      async function loadTFHistogram() {
+        const resp = await fetch("/tf_histogram");
+        if (!resp.ok) return;
+        const docs = await resp.json();
+        drawTFHistogram(docs);
+      }
+
+      function drawTFHistogram(docs) {
+        const container = d3.select("#tf-histogram-container");
+        container.html("");
+
+        const containerWidth = container.node().offsetWidth;
+        const width = Math.min(containerWidth, 450);
+        const height = 280;
+        const margin = { top: 40, right: 20, bottom: 60, left: 60 };
+        const w = width - margin.left - margin.right;
+        const h = height - margin.top - margin.bottom;
+        const colors = ["#1a73e8", "#e15759", "#34a853"];
+
+        docs.forEach((doc, i) => {
+          const data = doc.tf_counts;
+          if (data.length === 0) return;
+
+          const tfValues = data.map((d) => d[0]);
+          const counts = data.map((d) => d[1]);
+
+          const svg = container
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .style("display", "block")
+            .style("margin-bottom", "20px");
+
+          const g = svg
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+          const maxTF = d3.max(tfValues);
+          const x = d3.scaleLog().domain([1, maxTF]).range([0, w]);
+          const y = d3
+            .scaleLinear()
+            .domain([0, d3.max(counts)])
+            .range([h, 0]);
+
+          const barWidth = Math.max(2, w / tfValues.length);
+
+          g.selectAll(".bar")
+            .data(data)
+            .enter()
+            .append("rect")
+            .attr("class", "bar")
+            .attr("x", (d) => x(d[0]))
+            .attr("width", barWidth)
+            .attr("y", (d) => y(d[1]))
+            .attr("height", (d) => h - y(d[1]))
+            .attr("fill", colors[i])
+            .attr("opacity", 0.8);
+
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${h})`)
+            .call(d3.axisBottom(x).ticks(5, "d"));
+
+          g.append("text")
+            .attr("class", "axis-label")
+            .attr("x", w / 2)
+            .attr("y", h + 40)
+            .attr("text-anchor", "middle")
+            .text("Term Frequency (TF)");
+
+          g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(5));
+
+          g.append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "rotate(-90)")
+            .attr("x", -h / 2)
+            .attr("y", -45)
+            .attr("text-anchor", "middle")
+            .text("Count");
+
+          svg
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", 20)
+            .attr("text-anchor", "middle")
+            .style("font-weight", "600")
+            .style("font-size", "12px")
+            .text(`Doc: ${doc.doc_id}`);
+
+          g.selectAll(".bar")
+            .append("title")
+            .text((d) => `TF: ${d[0]}, Count: ${d[1]}`);
+        });
+      }
+
+      // -----------------------------------------------------------------
+      // 3. Rank-Frequency (Zipf) Plot
+      // -----------------------------------------------------------------
+      async function loadZipfPlot() {
+        const resp = await fetch("/rank_frequency");
+        if (!resp.ok) return;
+        const docs = await resp.json();
+        drawZipfPlot(docs);
+      }
+
+      function drawZipfPlot(docs) {
+        const container = d3.select("#zipf-plot-container");
+        container.html("");
+
+        const containerWidth = container.node().offsetWidth;
+        const width = Math.min(containerWidth, 450);
+        const height = 280;
+        const margin = { top: 40, right: 20, bottom: 60, left: 70 };
+        const w = width - margin.left - margin.right;
+        const h = height - margin.top - margin.bottom;
+        const colors = ["#1a73e8", "#e15759", "#34a853"];
+
+        docs.forEach((doc, i) => {
+          const data = doc.rank_freq;
+          if (data.length === 0) return;
+
+          const ranks = data.map((d) => d[0]);
+          const freqs = data.map((d) => d[1]);
+
+          const svg = container
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .style("display", "block")
+            .style("margin-bottom", "20px");
+
+          const g = svg
+            .append("g")
+            .attr("transform", `translate(${margin.left},${margin.top})`);
+
+          const x = d3
+            .scaleLinear()
+            .domain([0, d3.max(ranks)])
+            .range([0, w]);
+          const maxFreq = d3.max(freqs);
+          const y = d3.scaleLog().domain([1, maxFreq]).range([h, 0]);
+
+          const line = d3
+            .line()
+            .x((d) => x(d[0]))
+            .y((d) => y(d[1]))
+            .curve(d3.curveMonotoneX);
+
+          g.append("path")
+            .datum(data)
+            .attr("fill", "none")
+            .attr("stroke", colors[i])
+            .attr("stroke-width", 2)
+            .attr("d", line);
+
+          g.selectAll(".dot")
+            .data(data)
+            .enter()
+            .append("circle")
+            .attr("class", "dot")
+            .attr("cx", (d) => x(d[0]))
+            .attr("cy", (d) => y(d[1]))
+            .attr("r", 2.5)
+            .attr("fill", colors[i])
+            .attr("opacity", 0.6);
+
+          g.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${h})`)
+            .call(d3.axisBottom(x).ticks(6));
+
+          g.append("text")
+            .attr("class", "axis-label")
+            .attr("x", w / 2)
+            .attr("y", h + 40)
+            .attr("text-anchor", "middle")
+            .text("Rank");
+
+          g.append("g")
+            .attr("class", "axis")
+            .call(d3.axisLeft(y).ticks(5, ".0e"));
+
+          g.append("text")
+            .attr("class", "axis-label")
+            .attr("transform", "rotate(-90)")
+            .attr("x", -h / 2)
+            .attr("y", -55)
+            .attr("text-anchor", "middle")
+            .text("Frequency");
+
+          svg
+            .append("text")
+            .attr("x", width / 2)
+            .attr("y", 20)
+            .attr("text-anchor", "middle")
+            .style("font-weight", "600")
+            .style("font-size", "12px")
+            .text(`Doc: ${doc.doc_id}`);
+
+          g.selectAll(".dot")
+            .append("title")
+            .text((d) => `Rank: ${d[0]}, Freq: ${d[1]}`);
+        });
+      }
+
+      // -----------------------------------------------------------------
+      // 4. Search UI
+      // -----------------------------------------------------------------
+      document
+        .getElementById("search-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const query = document.getElementById("query").value.trim();
+          const mode = document.querySelector(
+            'input[name="mode"]:checked'
+          ).value;
+
+          const resp = await fetch("/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query, mode }),
+          });
+
+          if (resp.ok) {
+            const results = await resp.json();
+            showResults(results, mode);
+          } else {
+            alert("Search failed");
+          }
+        });
+
+      function showResults(results, mode) {
+        const div = document.getElementById("results");
+        const countBadge = document.getElementById("results-count");
+
+        countBadge.textContent = results.length;
+
+        if (results.length === 0) {
+          div.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">😕</div>
+              <p>No results found for your query</p>
+            </div>`;
+          return;
+        }
+
+        div.innerHTML = "";
+
+        results.forEach((r) => {
+          const el = document.createElement("div");
+          el.className = "result";
+
+          const langClass =
+            r.language === "en" ? "en" : r.language === "fr" ? "fr" : "";
+          const langLabel =
+            r.language === "en"
+              ? "English"
+              : r.language === "fr"
+              ? "French"
+              : r.language;
+
+          if (mode === "sentence") {
+            const snippet = r.snippet.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+            el.innerHTML = `
+              <div class="result-header">
+                <h3>Document: ${r.doc_id} | Sentence #${r.sentence_idx + 1}</h3>
+                <span class="language-badge ${langClass}">${langLabel}</span>
+              </div>
+              <p><strong>Similarity:</strong> ${r.similarity_score}</p>
+              <p class="snippet">${snippet}</p>
+              <div class="meta">
+                <strong>Locations:</strong> ${
+                  r.locations.length
+                    ? r.locations
+                        .map((l) => `Line ${l[2]} (chars ${l[0]}-${l[1]})`)
+                        .join(" | ")
+                    : "N/A"
+                }
+              </div>`;
+          } else {
+            const snippet = r.snippet.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+            el.innerHTML = `
+              <div class="result-header">
+                <h3>Document: ${r.doc_id}</h3>
+                <span class="language-badge ${langClass}">${langLabel}</span>
+              </div>
+              <p><strong>Score:</strong> ${r.score}</p>
+              <p class="snippet">${snippet}</p>
+              <div class="meta">
+                <strong>Term scores:</strong> ${Object.entries(r.term_scores)
+                  .map(([t, s]) => `<code>${t}: ${s}</code>`)
+                  .join(", ")}<br>
+                <strong>Locations:</strong> ${r.locations
+                  .map((l) => `Line ${l[2]} (chars ${l[0]}-${l[1]})`)
+                  .join(" | ")}
+              </div>`;
+          }
+
+          div.appendChild(el);
+        });
+      }
+    </script>
+  </body>
+</html>
